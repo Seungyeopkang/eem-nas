@@ -1,16 +1,15 @@
 """Smoke tests for the SEM-NAS reference implementation.
 
-These tests do not require the NAS-Bench-201 pickles or downloaded data.
-The precomputed-backend tests fabricate a synthetic 15,625-entry proxy
-array; the online-backend tests use random Gaussian batches and a small
-NB-201 network.
+These tests do not require the NAS-Bench-201 .pth or any downloaded
+data; they use synthetic 15,625-entry proxy arrays for the search-side
+tests, and synthetic Gaussian batches for the online-backend tests.
 
 Run with::
 
     python -m pytest tests/ -q
 
-Tests for the online backend require PyTorch; if torch is not installed,
-those tests are skipped automatically.
+Tests for the online backend require PyTorch; they are skipped if
+torch is not installed.
 """
 from __future__ import annotations
 
@@ -110,7 +109,7 @@ def test_entropy_guided_mutation_changes_at_least_one_edge():
 
 
 # ---------------------------------------------------------------------------
-# Search loops with the precomputed backend
+# Search loops with the synthetic-array (precomputed) backend
 # ---------------------------------------------------------------------------
 
 
@@ -145,15 +144,15 @@ def test_online_backend_proxy_finite():
     from sem_nas.proxy import OnlineProxyBackend
     from sem_nas.proxy.proxies import PROXY_NAMES
 
-    enc = np.array([3, 1, 3, 1, 3, 1], dtype=int)  # mixed conv/skip cell
+    enc = np.array([3, 1, 3, 1, 3, 1], dtype=int)
     for proxy_name in PROXY_NAMES:
         backend = OnlineProxyBackend(
             proxy_name=proxy_name,
             dataset="cifar10",
             batch_size=8,
             n_batches=2 if proxy_name == "zico" else 1,
-            cells_per_stage=1,
-            data_source="random",
+            cells_per_stage=1,             # tiny for speed
+            data_source="random",          # no download / torchvision required
             init_seed=0,
             cell_seed=0,
         )
@@ -162,7 +161,7 @@ def test_online_backend_proxy_finite():
 
 
 def test_sem_nas_with_online_backend_smoke():
-    """Run SEM-NAS for a tiny FFC budget with the online backend."""
+    """Run SEM-NAS for a tiny FFC budget with the online backend (random data)."""
     from sem_nas.proxy import OnlineProxyBackend
 
     backend = OnlineProxyBackend(
@@ -180,6 +179,22 @@ def test_sem_nas_with_online_backend_smoke():
     best, pop, fit = run_sem_nas(ev, pop_size=6, K_gen=2, K_LS=1, W=2, b_LS=2)
     assert ev.ffc <= 12
     assert best.shape == (N_EDGES,)
+
+
+def test_imagenet16_120_falls_back_to_imagenet16():
+    """``imagenet16_120`` rejects torchvision and is routed to imagenet16."""
+    from sem_nas.proxy import OnlineProxyBackend
+
+    backend = OnlineProxyBackend(
+        proxy_name="synflow",
+        dataset="imagenet16_120",
+        data_source="random",  # use random so the test does not need real data
+        cells_per_stage=1,
+        batch_size=8,
+        n_batches=1,
+    )
+    score = backend.evaluate(np.array([3, 1, 3, 1, 3, 1], dtype=int))
+    assert np.isfinite(score)
 
 
 if __name__ == "__main__":

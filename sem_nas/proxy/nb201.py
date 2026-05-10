@@ -158,7 +158,7 @@ class NB201Network(nn.Module):
     """
 
     def __init__(self, encoding, num_classes: int = 10,
-                 stem_channels: int = 16, cells_per_stage: int = 2):
+                 stem_channels: int = 16, cells_per_stage: int = 5):
         super().__init__()
         c1 = int(stem_channels)
         c2 = c1 * 2
@@ -193,7 +193,7 @@ class NB201Network(nn.Module):
 
 
 def build_network(encoding, num_classes: int = 10, *,
-                  stem_channels: int = 16, cells_per_stage: int = 2,
+                  stem_channels: int = 16, cells_per_stage: int = 5,
                   init_seed: int | None = None,
                   device: str | torch.device = "cpu") -> NB201Network:
     """Construct an :class:`NB201Network` and move it to ``device``.
