@@ -6,7 +6,7 @@ Reference implementation accompanying the paper
 
 SEM-NAS is a single-population memetic procedure for **budgeted fixed-proxy zero-shot NAS** on NAS-Bench-201 TSS. Each run optimizes one fixed zero-cost proxy under a strict fitness function call budget (FFC = 100), and queries only 100 of the 15,625 architectures.
 
-This package contains a clean reproduction of the four primitives described in Section 3 of the paper, the four budgeted fixed-proxy search baselines, and minimal scripts to reproduce the 84-cell main comparison matrix.
+This package contains a clean reproduction of the four primitives described in Section 3 of the paper, the four budgeted fixed-proxy search baselines, two reference proxy backends (offline lookup and online PyTorch compute), and minimal scripts and a notebook to reproduce the 84-cell main comparison matrix.
 
 ---
 
@@ -14,24 +14,91 @@ This package contains a clean reproduction of the four primitives described in S
 
 ```
 code/
-├── README.md                  this file
-├── requirements.txt           numpy only (search uses table lookups, no PyTorch)
-├── LICENSE                    MIT
+├── README.md                       this file
+├── requirements.txt                numpy + torch (torchvision optional)
+├── LICENSE                         MIT
+├── notebooks/
+│   └── run_experiments.ipynb       end-to-end walkthrough (online proxy mode)
 ├── sem_nas/
-│   ├── encoding.py            NB-201 TSS encoding (length-6 op vector)
-│   ├── evaluator.py           FFC-bounded proxy evaluator
-│   ├── operators.py           tournament selection, uniform crossover, block mutation
-│   ├── local_search.py        1-flip first-improvement LS + per-call FFC view
-│   ├── primitives.py          RTS, rank+distance LS targets, entropy-guided mutation
-│   ├── sem_nas.py             Algorithm 1 (proposed method)
-│   └── baselines.py           4 baselines + 2 forced-edit fairness controls
+│   ├── encoding.py                 NB-201 TSS encoding (length-6 op vector)
+│   ├── evaluator.py                FFC-bounded evaluator (takes a ProxyBackend)
+│   ├── operators.py                tournament selection, uniform crossover, block mutation
+│   ├── local_search.py             1-flip first-improvement LS + per-call FFC view
+│   ├── primitives.py               RTS, rank+distance LS targets, entropy-guided mutation
+│   ├── sem_nas.py                  Algorithm 1 (proposed method)
+│   ├── baselines.py                4 baselines + 2 forced-edit fairness controls
+│   └── proxy/
+│       ├── backends.py             ProxyBackend ABC + Precomputed + Online
+│       ├── nb201.py                NB-201 cell + small backbone (PyTorch)
+│       ├── proxies.py              ZiCo, NWOT, SynFlow, Jacov, SNIP, GradNorm, Fisher
+│       └── data.py                 random + optional torchvision batch sources
 ├── scripts/
-│   ├── run_one.py             single (method, dataset, proxy, seed) cell
-│   ├── run_main_matrix.py     full 84-cell matrix driver
-│   └── load_proxy_pickle.py   helper for nb201_<dataset>.pkl loading
+│   ├── run_one.py                  single (method, dataset, proxy, seed) cell
+│   ├── run_main_matrix.py          full 84-cell matrix driver
+│   └── load_proxy_pickle.py        helper for nb201_<dataset>.pkl loading (precomputed mode)
 └── tests/
-    └── test_sem_nas.py        smoke tests (no pickles needed)
+    └── test_sem_nas.py             smoke tests including online-backend coverage
 ```
+
+---
+
+## Two proxy backends
+
+The search side is identical in both cases; only the **evaluator backend** changes.
+
+### Online (default)
+
+Every candidate produced by the search loop builds the actual NAS-Bench-201 architecture from its length-6 encoding, initializes the network with the run seed, and runs the chosen zero-cost proxy on a fixed cached minibatch via PyTorch.
+
+```python
+from sem_nas.evaluator import FitnessEvaluator
+from sem_nas.proxy import OnlineProxyBackend
+from sem_nas.sem_nas import run as run_sem_nas
+
+backend = OnlineProxyBackend(
+    proxy_name='zico', dataset='cifar10',
+    batch_size=16, n_batches=2,
+    device='cuda',                # or 'cpu'
+    data_source='random',         # or 'torchvision' (downloads CIFAR-10/100)
+    init_seed=0, cell_seed=0,
+)
+evaluator = FitnessEvaluator(backend, max_evals=100)
+best, pop, fit = run_sem_nas(evaluator)
+```
+
+The seven supported proxies (matching the paper) are
+`zico, nwot, synflow, jacov, snip, grad_norm, fisher`. Each is invoked according to its standard formulation; see `sem_nas/proxy/proxies.py`.
+
+The `'random'` data source generates synthetic Gaussian batches, so the package works with no internet access. Switch to `'torchvision'` (CIFAR-10/CIFAR-100 only) for proxy values that match those reported in the public benchmarks.
+
+### Precomputed lookup
+
+For reproducing the paper headline at millisecond-scale FFC compute time, every candidate is looked up in the precomputed pickles:
+
+```python
+import pickle, numpy as np
+from sem_nas.evaluator import FitnessEvaluator
+from sem_nas.proxy import PrecomputedProxyBackend
+
+with open('data/nb201_cifar10.pkl', 'rb') as f:
+    pkl = pickle.load(f)
+proxy_scores = np.asarray(pkl['proxies']['zico'])
+test_accuracy = np.asarray(pkl['test_accuracy'])
+
+backend = PrecomputedProxyBackend(proxy_scores, test_accuracy)
+evaluator = FitnessEvaluator(backend, max_evals=100)
+```
+
+The pickle layout is
+
+```
+{'meta': {...},
+ 'test_accuracy': np.ndarray,           # shape (15625,)
+ 'proxies': {'zico': ..., 'nwot': ..., 'synflow': ...,
+             'jacov': ..., 'snip': ..., 'grad_norm': ..., 'fisher': ...}}
+```
+
+The release does not bundle the pickles; regenerate them from the public NAS-Bench-201 release and the standard zero-cost proxy implementations, or use the online backend.
 
 ---
 
@@ -40,65 +107,55 @@ code/
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+# Optional, for the torchvision data source:
+# pip install torchvision
+# Optional, for the notebook:
+# pip install matplotlib pandas
 ```
 
-Python ≥ 3.10 is recommended. The search itself only depends on NumPy because every proxy and test-accuracy value is a precomputed table lookup. No GPU, no PyTorch.
-
----
-
-## Preparing the data
-
-The release does **not** bundle the precomputed proxy pickles. To reproduce the experiments you need three files:
-
-```
-data/nb201_cifar10.pkl
-data/nb201_cifar100.pkl
-data/nb201_imagenet16_120.pkl
-```
-
-Each pickle is a dict::
-
-    {
-      "meta": {"benchmark": "NB201", "dataset": "...", "proxies": [...]},
-      "test_accuracy": np.ndarray of shape (15625,),
-      "proxies": {"zico": ..., "nwot": ..., "synflow": ..., "jacov": ...,
-                  "snip": ..., "grad_norm": ..., "fisher": ...},
-    }
-
-The pickles can be regenerated from the public NAS-Bench-201 release and the standard zero-cost proxy implementations. See the parent paper repository for the exact build script.
-
-The default lookup directory is `<repo>/code/data/`. Override it with the `SEM_NAS_DATA_DIR` environment variable or with the `--data_dir` CLI flag.
+Python ≥ 3.10 is recommended. PyTorch ≥ 2.0 is required for the online backend.
 
 ---
 
 ## Quick start
 
-Run one cell of the main matrix (SEM-NAS at FFC = 100):
+### Notebook
+
+The fastest way to see everything end-to-end (online proxy compute on a single architecture, all seven proxies, SEM-NAS run, baseline comparison) is the notebook:
+
+```bash
+jupyter notebook notebooks/run_experiments.ipynb
+```
+
+### Single cell (CLI)
+
+Run one `(method, dataset, proxy, seed)` cell at FFC = 100 with the **online** backend (default):
 
 ```bash
 python -m scripts.run_one --method sem_nas --dataset cifar10 --proxy zico --seed 0
-```
-
-Run a baseline:
-
-```bash
 python -m scripts.run_one --method aging_evolution --dataset cifar100 --proxy nwot --seed 7
 ```
 
-Run the full 84-cell matrix (5 methods × 7 proxies × 3 datasets, 100 seeds each, FFC = 100, parallelized across CPU workers):
+Or with the **precomputed** backend (requires `data/nb201_<dataset>.pkl`):
 
 ```bash
-python -m scripts.run_main_matrix --workers 8 --seeds 100
+python -m scripts.run_one --method sem_nas --dataset cifar10 --proxy zico --seed 0 \
+    --backend precomputed --data_dir data
 ```
 
-Subset of methods or proxies:
+### Full main matrix
+
+5 methods × 7 proxies × 3 datasets × 100 seeds at FFC = 100, parallelized across CPU workers:
 
 ```bash
-python -m scripts.run_main_matrix --workers 8 --seeds 100 \
-    --methods sem_nas,generic_ga --proxies zico,nwot
+# Online (every FFC triggers real PyTorch proxy compute)
+python -m scripts.run_main_matrix --workers 8 --seeds 100 --backend online
+
+# Precomputed lookup (millisecond per FFC)
+python -m scripts.run_main_matrix --workers 8 --seeds 100 --backend precomputed --data_dir data
 ```
 
-Result pickles land under `code/results/main_matrix/` and contain the running best per FFC, the queried-architecture history, and the returned architecture's encoding / proxy score / test accuracy.
+Per-cell pickles land under `code/results/main_matrix/`. They contain the running best per FFC, the queried-architecture history, and the returned architecture's encoding / proxy score / test accuracy.
 
 ---
 
@@ -115,29 +172,26 @@ Result pickles land under `code/results/main_matrix/` and contain the running be
 | `tournament_size` | 5 | tournament selection (reproduction) |
 | `crossover_prob` | 0.9 | uniform crossover probability |
 
-These values are the operating point used to produce the 82 W / 2 T / 0 L Holm-corrected main result on the 84-cell family.
+These values produce the 82 W / 2 T / 0 L Holm-corrected main result on the 84-cell family.
 
 ---
 
-## API
+## Wall-clock notes
 
-```python
-from sem_nas.evaluator import FitnessEvaluator
-from sem_nas.sem_nas import run as run_sem_nas
+* **Precomputed lookup**: ≈ 5–6 ms per run at FFC = 100 (the search loop itself).
+* **Online compute, CPU**: depends on the proxy. SynFlow ≈ 50 ms/FFC, ZiCo ≈ 300 ms/FFC, NWOT ≈ 100 ms/FFC, others in between (with `cells_per_stage=2`, batch size 16). One full FFC = 100 SEM-NAS run takes seconds to a minute on CPU.
+* **Online compute, GPU**: typically 5–15× faster than CPU for the gradient-based proxies.
 
-evaluator = FitnessEvaluator(proxy_scores, test_accuracy, max_evals=100)
-np.random.seed(0)  # determinism
-best_arch, final_population, final_fitness = run_sem_nas(evaluator)
-```
+The online backend caches per-encoding scores by default so the duplicate queries that are inherent to RTS replacement do not re-trigger PyTorch. Each unique architecture is still charged exactly one FFC the first time it is evaluated.
 
-The four baselines and two forced-edit controls share the same evaluator interface:
+---
+
+## Available baselines
 
 ```python
 from sem_nas.baselines import BASELINES
 best = BASELINES["aging_evolution"](evaluator)
 ```
-
-Available baseline keys:
 
 * `random` — uniform random sampling
 * `aging_evolution` — Real et al. (2019)
@@ -148,40 +202,14 @@ Available baseline keys:
 
 ---
 
-## Reproducing paper figures and tables
-
-The main matrix pickles produced by `scripts/run_main_matrix.py` are the ground truth for:
-
-* **Table 2** (Holm-corrected Win/Tie/Lose against the four baselines)
-* **Table 3** (per-cell mean ± std proxy score)
-* **Table 5** (forced-edit substitution headline 77/7/0)
-* **Figures 4–5** (FFC budget curves on ZiCo and NWOT)
-
-The aggregate paired Wilcoxon + Holm correction + Cliff's δ analysis is intentionally not bundled here, because that part is closer to one-off statistical post-processing than to the search method itself. The bundled `best_score_per_ffc` arrays are sufficient to reproduce both the headline table and the budget-sweep figures.
-
----
-
 ## Tests
 
 ```bash
 python -m pytest tests/ -q
 ```
 
-The tests do not require the NB-201 pickles; they use a synthetic 15,625-entry score array.
+Includes 8 search-side smoke tests plus 2 online-backend tests (build network → compute every proxy → finite-output check; run SEM-NAS with the online backend at a tiny FFC budget). The tests do not require the precomputed pickles or downloaded data.
 
----
-
-## Citation
-
-```bibtex
-@article{seo2026semnas,
-  title={Budgeted Fixed-Proxy Search for Zero-Shot NAS on NAS-Bench-201 via Sample-Efficient Memetic NAS},
-  author={Seo, Wangduk},
-  journal={Electronics},
-  year={2026},
-  publisher={MDPI}
-}
-```
 
 ---
 
