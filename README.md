@@ -189,18 +189,6 @@ python -m pytest tests/ -q
 
 Includes 8 search-side smoke tests plus 3 online-backend tests (build NB-201 → run every proxy → finite-output check; SEM-NAS with the online backend at a tiny FFC budget; ImageNet-16-120 routing). The tests do not require the `.pth` or downloaded image data.
 
----
-
-## Citation
-
-```bibtex
-@article{seo2026semnas,
-  title={Budgeted Fixed-Proxy Search for Zero-Shot NAS on NAS-Bench-201 via Sample-Efficient Memetic NAS},
-  author={Seo, Wangduk},
-  journal={Electronics},
-  year={2026},
-  publisher={MDPI}
-}
 ```
 
 ---
