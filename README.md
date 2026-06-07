@@ -1,10 +1,10 @@
-# Sample-Efficient Memetic NAS (SEM-NAS)
+# Evaluation Efficient Memetic NAS (EEM-NAS)
 
 Reference implementation accompanying the paper
 
-> **Budgeted Fixed-Proxy Search for Zero-Shot NAS on NAS-Bench-201 via Sample-Efficient Memetic NAS** (Electronics, 2026).
+> **Budgeted Fixed-Proxy Search for Zero-Shot NAS on NAS-Bench-201 via Evaluation Efficient Memetic NAS** (Electronics, 2026).
 
-SEM-NAS is a single-population memetic procedure for **budgeted fixed-proxy zero-shot NAS** on NAS-Bench-201 TSS. Each run optimizes one fixed zero-cost proxy under a strict fitness function call budget (FFC = 100), and queries only 100 of the 15,625 architectures.
+EEM-NAS is a single-population memetic procedure for **budgeted fixed-proxy zero-shot NAS** on NAS-Bench-201 TSS. Each run optimizes one fixed zero-cost proxy under a strict fitness function call budget (FFC = 100), and queries only 100 of the 15,625 architectures.
 
 This package contains a clean reproduction of the four primitives described in Section 3 of the paper, the four budgeted fixed-proxy search baselines, an **online** zero-cost proxy backend (every candidate triggers a real PyTorch forward/backward pass on the actual NB-201 architecture), and a notebook + scripts that auto-download the required NB-201 release file.
 
@@ -19,13 +19,13 @@ code/
 ├── LICENSE                         MIT
 ├── notebooks/
 │   └── run_experiments.ipynb       end-to-end walkthrough following main.ipynb
-├── sem_nas/
+├── eem_nas/
 │   ├── encoding.py                 NB-201 TSS encoding (length-6 op vector)
 │   ├── evaluator.py                FFC-bounded evaluator (takes a ProxyBackend)
 │   ├── operators.py                tournament selection, uniform crossover, block mutation
 │   ├── local_search.py             1-flip first-improvement LS + per-call FFC view
 │   ├── primitives.py               RTS, rank+distance LS targets, entropy-guided mutation
-│   ├── sem_nas.py                  Algorithm 1 (proposed method)
+│   ├── eem_nas.py                  Algorithm 1 (proposed method)
 │   ├── baselines.py                4 baselines + 2 forced-edit fairness controls
 │   └── proxy/
 │       ├── backends.py             OnlineProxyBackend (NB-201 only) + PrecomputedProxyBackend (tests)
@@ -38,7 +38,7 @@ code/
 │   ├── run_one.py                  single (method, dataset, proxy, seed) cell
 │   └── run_main_matrix.py          full 84-cell matrix driver
 └── tests/
-    └── test_sem_nas.py             smoke tests including online-backend coverage
+    └── test_eem_nas.py             smoke tests including online-backend coverage
 ```
 
 ---
@@ -48,9 +48,9 @@ code/
 Every candidate produced by the search loop builds the actual NAS-Bench-201 architecture from its length-6 encoding, initializes the network with the run seed, and runs the chosen zero-cost proxy on a fixed cached minibatch via PyTorch.
 
 ```python
-from sem_nas.evaluator import FitnessEvaluator
-from sem_nas.proxy import NB201Api, OnlineProxyBackend
-from sem_nas.sem_nas import run as run_sem_nas
+from eem_nas.evaluator import FitnessEvaluator
+from eem_nas.proxy import NB201Api, OnlineProxyBackend
+from eem_nas.eem_nas import run as run_eem_nas
 from scripts.download_nb201 import ensure_nb201_api
 
 # Auto-download NAS-Bench-201-v1_1-096897.pth (~2.2 GB) on first call.
@@ -66,10 +66,10 @@ backend = OnlineProxyBackend(
     nb201_api=api,                # so test_accuracy of the returned arch is filled in
 )
 evaluator = FitnessEvaluator(backend, max_evals=100)
-best, pop, fit = run_sem_nas(evaluator)
+best, pop, fit = run_eem_nas(evaluator)
 ```
 
-The seven supported proxies are `zico, nwot, synflow, jacov, snip, grad_norm, fisher`. Each is invoked according to its standard formulation; see `sem_nas/proxy/proxies.py`.
+The seven supported proxies are `zico, nwot, synflow, jacov, snip, grad_norm, fisher`. Each is invoked according to its standard formulation; see `eem_nas/proxy/proxies.py`.
 
 The `.pth` file is consulted only for the trained test accuracy of the returned architecture (a downstream diagnostic). It is never read by the search loop.
 
@@ -113,14 +113,14 @@ jupyter notebook notebooks/run_experiments.ipynb
 The first call auto-downloads the `.pth` if it is missing:
 
 ```bash
-python -m scripts.run_one --method sem_nas --dataset cifar10 --proxy zico --seed 0
+python -m scripts.run_one --method eem_nas --dataset cifar10 --proxy zico --seed 0
 python -m scripts.run_one --method generic_ga --dataset cifar100 --proxy nwot --seed 7
 ```
 
 Skip the download / accuracy lookup with `--no_test_accuracy` (useful in environments without internet):
 
 ```bash
-python -m scripts.run_one --method sem_nas --dataset cifar10 --proxy synflow --seed 0 \
+python -m scripts.run_one --method eem_nas --dataset cifar10 --proxy synflow --seed 0 \
     --no_test_accuracy --data_source random --cells_per_stage 2
 ```
 
@@ -139,7 +139,7 @@ Per-cell pickles land under `code/results/main_matrix/`. They contain the runnin
 
 ---
 
-## SEM-NAS hyperparameters (paper-final)
+## EEM-NAS hyperparameters (paper-final)
 
 | Symbol | Value | Meaning |
 |---|---|---|
@@ -159,7 +159,7 @@ These values produce the 82 W / 2 T / 0 L Holm-corrected main result on the 84-c
 
 ## Wall-clock notes
 
-* **CPU**: depends on the proxy and `cells_per_stage`. With the full backbone (`cells_per_stage=5`) and batch size 16, expect roughly 100 ms / FFC for SynFlow, 500 ms / FFC for ZiCo. One full FFC = 100 SEM-NAS run takes 10 s – 1 minute on CPU.
+* **CPU**: depends on the proxy and `cells_per_stage`. With the full backbone (`cells_per_stage=5`) and batch size 16, expect roughly 100 ms / FFC for SynFlow, 500 ms / FFC for ZiCo. One full FFC = 100 EEM-NAS run takes 10 s – 1 minute on CPU.
 * **GPU**: typically 5–15× faster for the gradient-based proxies.
 * The online backend caches per-encoding scores by default so the duplicate queries inherent to RTS replacement do not re-trigger PyTorch. Each unique architecture is still charged exactly one FFC the first time it is evaluated.
 
@@ -168,7 +168,7 @@ These values produce the 82 W / 2 T / 0 L Holm-corrected main result on the 84-c
 ## Available baselines
 
 ```python
-from sem_nas.baselines import BASELINES
+from eem_nas.baselines import BASELINES
 best = BASELINES["aging_evolution"](evaluator)
 ```
 
@@ -187,7 +187,7 @@ best = BASELINES["aging_evolution"](evaluator)
 python -m pytest tests/ -q
 ```
 
-Includes 8 search-side smoke tests plus 3 online-backend tests (build NB-201 → run every proxy → finite-output check; SEM-NAS with the online backend at a tiny FFC budget; ImageNet-16-120 routing). The tests do not require the `.pth` or downloaded image data.
+Includes 8 search-side smoke tests plus 3 online-backend tests (build NB-201 → run every proxy → finite-output check; EEM-NAS with the online backend at a tiny FFC budget; ImageNet-16-120 routing). The tests do not require the `.pth` or downloaded image data.
 
 ```
 

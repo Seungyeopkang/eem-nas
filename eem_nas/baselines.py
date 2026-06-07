@@ -1,6 +1,6 @@
 """Budgeted fixed-proxy search baselines.
 
-Four baselines compared against SEM-NAS in the paper:
+Four baselines compared against EEM-NAS in the paper:
 
 * :func:`random_search` — i.i.d. uniform sampling.
 * :func:`aging_evolution` — Aging (Regularized) Evolution of Real et al. (2019).
@@ -13,10 +13,10 @@ Two forced-edit controls are also exposed for the §4 fairness diagnostic:
 the originals only in using :func:`forced_block_mutation`, which guarantees
 at least one edit per mutated offspring.
 
-All baselines share population size with SEM-NAS (``pop_size = 10``) and use
+All baselines share population size with EEM-NAS (``pop_size = 10``) and use
 the same operator hyperparameters. They optimize a single fixed proxy under
 identical FFC accounting, so the comparison isolates the effect of the
-SEM-NAS search loop.
+EEM-NAS search loop.
 """
 from __future__ import annotations
 

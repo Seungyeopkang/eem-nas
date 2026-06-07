@@ -1,6 +1,6 @@
-"""Sample-Efficient Memetic NAS (SEM-NAS), the proposed method.
+"""Evaluation Efficient Memetic NAS (EEM-NAS), the proposed method.
 
-Algorithm 1 of the paper. SEM-NAS is a single-population memetic procedure
+Algorithm 1 of the paper. EEM-NAS is a single-population memetic procedure
 that integrates four primitives under a strict FFC budget:
 
 1. Standard rank-based RTS replacement (Harik 1995, no niche term) for child
@@ -68,7 +68,7 @@ def run(evaluator: FitnessEvaluator,
         W: int = 3,
         b_LS: int = 25,
         mutation_prob: float = MUTATION_PROB) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Run SEM-NAS until the FFC budget is exhausted.
+    """Run EEM-NAS until the FFC budget is exhausted.
 
     Args:
         evaluator: ``FitnessEvaluator`` carrying the proxy/test arrays and

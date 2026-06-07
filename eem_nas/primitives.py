@@ -1,6 +1,6 @@
-"""SEM-NAS primitives.
+"""EEM-NAS primitives.
 
-Four primitives compose the SEM-NAS loop:
+Four primitives compose the EEM-NAS loop:
 
 * Rank-based RTS insertion (Algorithm 2): standard sampled-window rank
   replacement of Harik (1995) with no niche term. Used both for child

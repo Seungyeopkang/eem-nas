@@ -1,6 +1,6 @@
 """1-flip first-improvement local search and per-call FFC view.
 
-The local-search phase of SEM-NAS uses a bounded 1-flip first-improvement
+The local-search phase of EEM-NAS uses a bounded 1-flip first-improvement
 sweep over the Hamming-1 neighborhood of the LS target. The neighborhood
 contains exactly ``N_EDGES * (N_OPS - 1) = 24`` architectures on NAS-Bench-201
 TSS, and each call is capped at ``b_LS`` newly-evaluated neighbors.

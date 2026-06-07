@@ -44,7 +44,7 @@ class OnlineProxyBackend(ProxyBackend):
 
     Args:
         proxy_name: one of ``zico, nwot, synflow, jacov, snip, grad_norm,
-            fisher`` (see :mod:`sem_nas.proxy.proxies`).
+            fisher`` (see :mod:`eem_nas.proxy.proxies`).
         dataset: one of ``cifar10, cifar100, imagenet16_120``.
         batch_size: minibatch size for proxy evaluation.
         n_batches: number of cached minibatches. ZiCo needs at least 2.

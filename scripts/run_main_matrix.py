@@ -4,7 +4,7 @@ The matrix is
 
     methods (5)  x  proxies (7)  x  datasets (3)  x  seeds (N)
 
-where the methods are SEM-NAS plus four baselines (random,
+where the methods are EEM-NAS plus four baselines (random,
 aging_evolution, simple_mutation, generic_ga). Every candidate is
 evaluated by a real PyTorch zero-cost proxy computation; the
 ``NAS-Bench-201-v1_1-096897.pth`` is auto-downloaded and used only to
@@ -14,7 +14,7 @@ Examples::
 
     python -m scripts.run_main_matrix --workers 8 --seeds 100
     python -m scripts.run_main_matrix --workers 8 --seeds 100 \\
-        --methods sem_nas,generic_ga --proxies zico,nwot
+        --methods eem_nas,generic_ga --proxies zico,nwot
 """
 from __future__ import annotations
 
@@ -29,14 +29,14 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sem_nas.baselines import BASELINES
-from sem_nas.evaluator import FitnessEvaluator
-from sem_nas.proxy import NB201Api, NB201_DATASETS, OnlineProxyBackend
-from sem_nas.proxy.proxies import PROXY_NAMES
-from sem_nas.sem_nas import run as run_sem_nas
+from eem_nas.baselines import BASELINES
+from eem_nas.evaluator import FitnessEvaluator
+from eem_nas.proxy import NB201Api, NB201_DATASETS, OnlineProxyBackend
+from eem_nas.proxy.proxies import PROXY_NAMES
+from eem_nas.eem_nas import run as run_eem_nas
 from scripts.download_nb201 import ensure_nb201_api
 
-DEFAULT_METHODS = ("sem_nas", "random", "aging_evolution",
+DEFAULT_METHODS = ("eem_nas", "random", "aging_evolution",
                    "simple_mutation", "generic_ga")
 DEFAULT_PROXIES = PROXY_NAMES  # 7 proxies
 DEFAULT_FFC = 100
@@ -100,8 +100,8 @@ def _run_cell(args: tuple) -> tuple[str, float]:
     np.random.seed(int(seed))
     evaluator = FitnessEvaluator(backend, max_evals=int(ffc))
     t0 = time.time()
-    if method == "sem_nas":
-        best, _, _ = run_sem_nas(evaluator)
+    if method == "eem_nas":
+        best, _, _ = run_eem_nas(evaluator)
     else:
         best = BASELINES[method](evaluator)
     elapsed = time.time() - t0

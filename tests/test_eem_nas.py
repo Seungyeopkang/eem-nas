@@ -1,4 +1,4 @@
-"""Smoke tests for the SEM-NAS reference implementation.
+"""Smoke tests for the EEM-NAS reference implementation.
 
 These tests do not require the NAS-Bench-201 .pth or any downloaded
 data; they use synthetic 15,625-entry proxy arrays for the search-side
@@ -21,8 +21,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sem_nas.baselines import BASELINES
-from sem_nas.encoding import (
+from eem_nas.baselines import BASELINES
+from eem_nas.encoding import (
     N_ARCHS,
     N_EDGES,
     N_OPS,
@@ -30,15 +30,15 @@ from sem_nas.encoding import (
     index_to_encoding,
     random_individual,
 )
-from sem_nas.evaluator import FitnessEvaluator
-from sem_nas.primitives import (
+from eem_nas.evaluator import FitnessEvaluator
+from eem_nas.primitives import (
     entropy_guided_mutation,
     hamming,
     rank_plus_distance_targets,
     rts_insert,
 )
-from sem_nas.proxy import PrecomputedProxyBackend
-from sem_nas.sem_nas import run as run_sem_nas
+from eem_nas.proxy import PrecomputedProxyBackend
+from eem_nas.eem_nas import run as run_eem_nas
 
 
 def _make_evaluator(ffc: int = 100, seed: int = 0) -> FitnessEvaluator:
@@ -113,10 +113,10 @@ def test_entropy_guided_mutation_changes_at_least_one_edge():
 # ---------------------------------------------------------------------------
 
 
-def test_sem_nas_run_respects_ffc_budget():
+def test_eem_nas_run_respects_ffc_budget():
     ev = _make_evaluator(ffc=80)
     np.random.seed(0)
-    best, pop, fit = run_sem_nas(ev)
+    best, pop, fit = run_eem_nas(ev)
     assert ev.ffc <= 80
     assert best.shape == (N_EDGES,)
     assert pop.shape == (10, N_EDGES)
@@ -141,8 +141,8 @@ torch = pytest.importorskip("torch")
 
 def test_online_backend_proxy_finite():
     """Build NB-201 once and confirm each proxy returns a finite scalar."""
-    from sem_nas.proxy import OnlineProxyBackend
-    from sem_nas.proxy.proxies import PROXY_NAMES
+    from eem_nas.proxy import OnlineProxyBackend
+    from eem_nas.proxy.proxies import PROXY_NAMES
 
     enc = np.array([3, 1, 3, 1, 3, 1], dtype=int)
     for proxy_name in PROXY_NAMES:
@@ -160,9 +160,9 @@ def test_online_backend_proxy_finite():
         assert np.isfinite(score), f"{proxy_name} returned non-finite score"
 
 
-def test_sem_nas_with_online_backend_smoke():
-    """Run SEM-NAS for a tiny FFC budget with the online backend (random data)."""
-    from sem_nas.proxy import OnlineProxyBackend
+def test_eem_nas_with_online_backend_smoke():
+    """Run EEM-NAS for a tiny FFC budget with the online backend (random data)."""
+    from eem_nas.proxy import OnlineProxyBackend
 
     backend = OnlineProxyBackend(
         proxy_name="synflow",  # data-free, fastest of the seven
@@ -176,14 +176,14 @@ def test_sem_nas_with_online_backend_smoke():
     )
     ev = FitnessEvaluator(backend, max_evals=12)
     np.random.seed(0)
-    best, pop, fit = run_sem_nas(ev, pop_size=6, K_gen=2, K_LS=1, W=2, b_LS=2)
+    best, pop, fit = run_eem_nas(ev, pop_size=6, K_gen=2, K_LS=1, W=2, b_LS=2)
     assert ev.ffc <= 12
     assert best.shape == (N_EDGES,)
 
 
 def test_imagenet16_120_falls_back_to_imagenet16():
     """``imagenet16_120`` rejects torchvision and is routed to imagenet16."""
-    from sem_nas.proxy import OnlineProxyBackend
+    from eem_nas.proxy import OnlineProxyBackend
 
     backend = OnlineProxyBackend(
         proxy_name="synflow",

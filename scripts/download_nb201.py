@@ -22,7 +22,7 @@ Run::
 
 After this command,
 ``data/nb201/NAS-Bench-201-v1_1-096897.pth`` is ready for use by
-:class:`sem_nas.proxy.nb201_api.NB201Api`.
+:class:`eem_nas.proxy.nb201_api.NB201Api`.
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """Generic GA operators.
 
-These operators are shared between SEM-NAS and the evolutionary baselines.
+These operators are shared between EEM-NAS and the evolutionary baselines.
 They use NumPy global RNG via the seed set in the run driver, which is the
 convention used by the paper experiments for bit-exact reruns.
 """
@@ -57,7 +57,7 @@ def forced_block_mutation(individual: np.ndarray,
     """Block mutation with an at-least-one-edit fallback.
 
     When the per-edge Bernoulli mask happens to be all zero, one edge is
-    forced to mutate. Used by SEM-NAS for the entropy-mutation primitive
+    forced to mutate. Used by EEM-NAS for the entropy-mutation primitive
     and by the forced-edit fairness-diagnostic baselines.
     """
     child = block_mutation(individual, prob=prob)

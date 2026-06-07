@@ -8,13 +8,13 @@ is read from the auto-downloaded ``NAS-Bench-201-v1_1-096897.pth``.
 Examples::
 
     # CIFAR-10 / ZiCo, online compute (default), torchvision data
-    python -m scripts.run_one --method sem_nas --dataset cifar10 --proxy zico --seed 0
+    python -m scripts.run_one --method eem_nas --dataset cifar10 --proxy zico --seed 0
 
     # CIFAR-100 / NWOT, generic GA, single CPU
     python -m scripts.run_one --method generic_ga --dataset cifar100 --proxy nwot --seed 7
 
     # Run on a GPU and use a smaller backbone for faster CPU prototyping
-    python -m scripts.run_one --method sem_nas --dataset cifar10 --proxy synflow \
+    python -m scripts.run_one --method eem_nas --dataset cifar10 --proxy synflow \
         --device cuda --cells_per_stage 5
 """
 from __future__ import annotations
@@ -29,15 +29,15 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sem_nas.baselines import BASELINES
-from sem_nas.evaluator import FitnessEvaluator
-from sem_nas.proxy import NB201Api, NB201_DATASETS, OnlineProxyBackend
-from sem_nas.proxy.proxies import PROXY_NAMES
-from sem_nas.sem_nas import run as run_sem_nas
+from eem_nas.baselines import BASELINES
+from eem_nas.evaluator import FitnessEvaluator
+from eem_nas.proxy import NB201Api, NB201_DATASETS, OnlineProxyBackend
+from eem_nas.proxy.proxies import PROXY_NAMES
+from eem_nas.eem_nas import run as run_eem_nas
 from scripts.download_nb201 import ensure_nb201_api
 
 DEFAULT_FFC = 100
-METHOD_CHOICES = ("sem_nas", *BASELINES.keys())
+METHOD_CHOICES = ("eem_nas", *BASELINES.keys())
 
 
 def parse_args() -> argparse.Namespace:
@@ -95,8 +95,8 @@ def main() -> None:
     evaluator = FitnessEvaluator(backend, max_evals=args.ffc)
 
     t0 = time.time()
-    if args.method == "sem_nas":
-        best, _, _ = run_sem_nas(evaluator)
+    if args.method == "eem_nas":
+        best, _, _ = run_eem_nas(evaluator)
     else:
         best = BASELINES[args.method](evaluator)
     elapsed = time.time() - t0

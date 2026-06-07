@@ -3,11 +3,11 @@
 The official NAS-Bench-201 release (``NAS-Bench-201-v1_1-096897.pth``,
 ~2.2 GB, Google Drive) is read through the ``nas_201_api`` Python package.
 We scan it once and cache a length-15,625 ``test_accuracy`` array per
-dataset, indexed by the same length-6 encoding used by SEM-NAS.
+dataset, indexed by the same length-6 encoding used by EEM-NAS.
 
 Test accuracy is a downstream diagnostic; the search loop never reads
 it. Zero-cost proxy scores are still computed online by
-:class:`sem_nas.proxy.OnlineProxyBackend` on each candidate.
+:class:`eem_nas.proxy.OnlineProxyBackend` on each candidate.
 """
 from __future__ import annotations
 

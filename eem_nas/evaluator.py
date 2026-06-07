@@ -1,7 +1,7 @@
 """FFC-bounded fitness evaluator with a pluggable proxy backend.
 
 The evaluator delegates the actual proxy score to a
-:class:`sem_nas.proxy.ProxyBackend`. Two reference backends are bundled:
+:class:`eem_nas.proxy.ProxyBackend`. Two reference backends are bundled:
 
 * :class:`PrecomputedProxyBackend` — looks up the score from precomputed
   NAS-Bench-201 arrays. Use this to reproduce the paper headline at
