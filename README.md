@@ -4,6 +4,8 @@ Reference implementation accompanying the paper
 
 > **Budgeted Fixed-Proxy Search for Zero-Shot NAS on NAS-Bench-201 via Evaluation Efficient Memetic NAS** (Electronics, 2026).
 
+![EEM-NAS Overview](assets/overview.jpg)
+
 EEM-NAS is a single-population memetic procedure for **budgeted fixed-proxy zero-shot NAS** on NAS-Bench-201 TSS. Each run optimizes one fixed zero-cost proxy under a strict fitness function call budget (FFC = 100), and queries only 100 of the 15,625 architectures.
 
 This package contains a clean reproduction of the four primitives described in Section 3 of the paper, the four budgeted fixed-proxy search baselines, an **online** zero-cost proxy backend (every candidate triggers a real PyTorch forward/backward pass on the actual NB-201 architecture), and a notebook + scripts that auto-download the required NB-201 release file.
