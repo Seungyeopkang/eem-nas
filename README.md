@@ -1,8 +1,23 @@
 # Evaluation-Efficient Memetic NAS (EEM-NAS)
 
+[![Paper](https://img.shields.io/badge/Paper-MDPI%20Electronics-blue.svg)](https://www.mdpi.com/2079-9292/15/15/3408)
+[![DOI](https://img.shields.io/badge/DOI-10.3390%2Felectronics15153408-blue.svg)](https://doi.org/10.3390/electronics15153408)
+
 Reference implementation accompanying the paper:
 
-> **Budgeted Fixed-Proxy Search for Zero-Shot NAS on NAS-Bench-201 via Evaluation Efficient Memetic NAS** (Electronics, 2026).
+> 📄 Published in *Electronics*, 2026.
+>
+> **Budgeted Fixed-Proxy Search for Zero-Shot NAS on NAS-Bench-201 via Evaluation-Efficient Memetic NAS**
+
+---
+
+## Paper & Publication
+
+- **Journal:** *Electronics* (2026)
+- **DOI:** https://doi.org/10.3390/electronics15153408
+- **Paper:** https://www.mdpi.com/2079-9292/15/15/3408
+
+---
 
 ![EEM-NAS overview](assets/overview.jpg)
 
