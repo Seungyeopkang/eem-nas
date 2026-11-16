@@ -6,7 +6,7 @@ data-dependent) one or more minibatches of (image, label) tensors, and
 returns a single scalar score.
 
 Higher scores are better in all cases. For SynFlow, ZiCo, SNIP, GradNorm,
-Fisher, and NWOT this matches the convention adopted by NAS-Bench-Suite-Zero
+Fisher, NWOT, and SWAP this matches the convention adopted by NAS-Bench-Suite-Zero
 and the original papers. Jacov is reported on the same higher-is-better
 orientation by negating the original Mellor et al. KL-style penalty.
 
@@ -253,6 +253,92 @@ def zico(net: nn.Module, batches: Iterable[tuple["torch.Tensor", "torch.Tensor"]
 
 
 # ---------------------------------------------------------------------------
+# SWAP (Peng et al., ICLR 2024)
+# ---------------------------------------------------------------------------
+
+
+def _gaussian_init_(net: nn.Module, generator: "torch.Generator") -> None:
+    """Official SWAP re-initialization: N(0, 1) conv/linear weights, zero
+    biases, unit/zero norm affine parameters.
+
+    Weights are drawn on the CPU from ``generator`` and copied to the
+    network's device, so the scores do not depend on the device RNG.
+    """
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                m.weight.copy_(torch.randn(m.weight.shape, generator=generator))
+                if m.bias is not None:
+                    m.bias.zero_()
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                if m.weight is not None:
+                    m.weight.fill_(1.0)
+                if m.bias is not None:
+                    m.bias.zero_()
+
+
+def _pattern_codes(out: "torch.Tensor") -> "torch.Tensor":
+    """Encode each unit's binary activation pattern over the batch as integers.
+
+    ``out`` has shape ``(m, ...)``; every unit (channel x spatial position)
+    yields an m-bit pattern ``1[a_u(x_i) > 0]``. Patterns are packed into
+    ``ceil(m / 32)`` int64 words, giving a ``(units, words)`` tensor in
+    which equal rows correspond to equal patterns.
+    """
+    m = out.size(0)
+    z = (out.reshape(m, -1) > 0).t()  # (units, m)
+    words = []
+    for start in range(0, m, 32):
+        chunk = z[:, start:start + 32].to(torch.int64)
+        weights = torch.pow(2, torch.arange(chunk.size(1), device=chunk.device,
+                                            dtype=torch.int64))
+        words.append((chunk * weights).sum(dim=1))  # int64 matmul is CPU-only
+    return torch.stack(words, dim=1)
+
+
+def swap(net: nn.Module, x: "torch.Tensor", *, repeats: int = 5,
+         seed: int = 0) -> float:
+    """Sample-Wise Activation Pattern count, official plain (unregularized) score.
+
+    For a minibatch ``{x_i}`` of size ``m``, every post-ReLU unit ``u`` of a
+    4-D feature map defines the binary vector ``z_u = (1[a_u(x_i) > 0])_i``;
+    the score is the number of distinct vectors ``|{z_u}|`` across the whole
+    network. Following the official implementation and the EEM-NAS paper,
+    the network is re-initialized with Gaussian weights ``repeats`` times
+    and the counts are averaged.
+
+    Reference: Peng et al., "SWAP-NAS: Sample-Wise Activation Patterns for
+    Ultra-fast NAS", ICLR 2024.
+    """
+    codes: list[torch.Tensor] = []
+
+    def hook(_module, inp, out):
+        if isinstance(inp, tuple) and inp and inp[0].dim() == 4:
+            codes.append(_pattern_codes(out.detach()))
+
+    handles = [m.register_forward_hook(hook)
+               for m in net.modules() if isinstance(m, nn.ReLU)]
+    generator = torch.Generator().manual_seed(int(seed))
+    scores = []
+    try:
+        for _ in range(int(repeats)):
+            _gaussian_init_(net, generator)
+            codes.clear()
+            with torch.no_grad():
+                net(x)
+            if not codes:
+                scores.append(0.0)
+                continue
+            allc = torch.cat(codes, dim=0)
+            n_unique = torch.unique(allc, dim=0).size(0)
+            scores.append(float(n_unique))
+    finally:
+        for h in handles:
+            h.remove()
+    return sum(scores) / len(scores)
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -265,6 +351,7 @@ PROXY_FNS = {
     "jacov": "jacov",
     "fisher": "fisher",
     "zico": "zico",
+    "swap": "swap",
 }
 PROXY_NAMES = tuple(PROXY_FNS.keys())
 
@@ -275,3 +362,11 @@ def is_data_free(name: str) -> bool:
 
 def needs_multi_batch(name: str) -> bool:
     return name == "zico"
+
+
+# SWAP is defined on a 64-sample minibatch (official setting, used in the paper).
+SWAP_BATCH_SIZE = 64
+
+
+def default_batch_size(name: str) -> int:
+    return SWAP_BATCH_SIZE if name == "swap" else 16

@@ -1,4 +1,4 @@
-"""Run the 84-cell main comparison matrix on NAS-Bench-201.
+"""Run the 96-cell main comparison matrix on NAS-Bench-201.
 
 The matrix is
 
@@ -38,7 +38,7 @@ from scripts.download_nb201 import ensure_nb201_api
 
 DEFAULT_METHODS = ("eem_nas", "random", "aging_evolution",
                    "simple_mutation", "generic_ga")
-DEFAULT_PROXIES = PROXY_NAMES  # 7 proxies
+DEFAULT_PROXIES = PROXY_NAMES  # 8 proxies
 DEFAULT_FFC = 100
 DEFAULT_SEEDS = 100
 
@@ -55,7 +55,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ffc", type=int, default=DEFAULT_FFC)
     parser.add_argument("--workers", type=int, default=max(1, mp.cpu_count() - 1))
     parser.add_argument("--device", default="cpu")
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=None,
+                        help="default: 64 for swap, 16 for the other proxies")
     parser.add_argument("--n_batches", type=int, default=2)
     parser.add_argument("--data_source", choices=("torchvision", "imagenet16", "random"),
                         default="torchvision")
@@ -86,7 +87,7 @@ def _run_cell(args: tuple) -> tuple[str, float]:
     backend = OnlineProxyBackend(
         proxy_name=proxy,
         dataset=dataset,
-        batch_size=int(opts.get("batch_size", 16)),
+        batch_size=opts.get("batch_size"),
         n_batches=int(opts.get("n_batches", 2)),
         device=opts.get("device", "cpu"),
         data_source=opts.get("data_source", "torchvision"),

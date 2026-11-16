@@ -44,9 +44,10 @@ class OnlineProxyBackend(ProxyBackend):
 
     Args:
         proxy_name: one of ``zico, nwot, synflow, jacov, snip, grad_norm,
-            fisher`` (see :mod:`eem_nas.proxy.proxies`).
+            fisher, swap`` (see :mod:`eem_nas.proxy.proxies`).
         dataset: one of ``cifar10, cifar100, imagenet16_120``.
-        batch_size: minibatch size for proxy evaluation.
+        batch_size: minibatch size for proxy evaluation. ``None`` picks the
+            proxy default: 64 for SWAP (official setting), 16 otherwise.
         n_batches: number of cached minibatches. ZiCo needs at least 2.
         device: ``cpu`` or ``cuda``.
         data_source: ``torchvision`` (default for cifar10/cifar100) /
@@ -69,7 +70,7 @@ class OnlineProxyBackend(ProxyBackend):
     """
 
     def __init__(self, proxy_name: str, dataset: str, *,
-                 batch_size: int = 16, n_batches: int = 2,
+                 batch_size: Optional[int] = None, n_batches: int = 2,
                  device: str = "cpu",
                  data_source: str = "torchvision",
                  init_seed: int = 0,
@@ -81,7 +82,7 @@ class OnlineProxyBackend(ProxyBackend):
                  imagenet16_root: Optional[str] = None):
         # Lazy imports keep the rest of the package usable without PyTorch.
         from .data import BatchSource, NB201_DATASET_SHAPES
-        from .proxies import PROXY_NAMES, needs_multi_batch
+        from .proxies import PROXY_NAMES, default_batch_size, needs_multi_batch
 
         if proxy_name not in PROXY_NAMES:
             raise ValueError(
@@ -92,6 +93,8 @@ class OnlineProxyBackend(ProxyBackend):
                 f"unknown dataset {dataset!r}; must be one of "
                 f"{tuple(NB201_DATASET_SHAPES)}"
             )
+        if batch_size is None:
+            batch_size = default_batch_size(proxy_name)
         if needs_multi_batch(proxy_name) and n_batches < 2:
             raise ValueError(
                 f"proxy {proxy_name!r} requires n_batches >= 2 (was {n_batches})"
@@ -157,6 +160,9 @@ class OnlineProxyBackend(ProxyBackend):
             return proxies.fisher(net, x, y)
         if name == "zico":
             return proxies.zico(net, self._batches.batches())
+        if name == "swap":
+            x, _ = self._batches.first_batch()
+            return proxies.swap(net, x, seed=self.init_seed)
         raise ValueError(f"unknown proxy {name!r}")  # pragma: no cover
 
     def evaluate(self, encoding) -> float:

@@ -40,7 +40,7 @@ NAS-Bench-201 TSS, 8 zero-cost proxies × 3 datasets (CIFAR-10, CIFAR-100, Image
 | Generic GA | 22 | 2 | 0 |
 | **Total (96 comparisons)** | **93** | **3** | **0** |
 
-> **Proxy coverage in this code.** The paper evaluates eight proxies: ZiCo, NWOT, SynFlow, Jacov, SNIP, Grad Norm, Fisher, and SWAP. This repository currently implements the first seven. The default matrix is therefore 4 × 7 × 3 = 84 comparisons, which gives 82 W / 2 T / 0 L, the 84-comparison subset of the paper's family.
+> **Proxy coverage.** All eight proxies from the paper are implemented: ZiCo, NWOT, SynFlow, Jacov, SNIP, Grad Norm, Fisher, and SWAP. The paper's search runs used precomputed proxy arrays over all 15,625 architectures. This repository computes the same proxies online, per queried architecture, so absolute proxy values can differ from the paper's arrays.
 
 ---
 
@@ -67,7 +67,7 @@ eem-nas/
 |       |-- backends.py             online and precomputed proxy backends
 |       |-- nb201.py                NAS-Bench-201 cell and backbone in PyTorch
 |       |-- nb201_api.py            trained-accuracy lookup wrapper
-|       |-- proxies.py              ZiCo, NWOT, SynFlow, Jacov, SNIP, GradNorm, Fisher
+|       |-- proxies.py              ZiCo, NWOT, SynFlow, Jacov, SNIP, GradNorm, Fisher, SWAP
 |       `-- data.py                 CIFAR/ImageNet-16/random data loaders
 |-- scripts/
 |   |-- download_nb201.py           gdown-based NAS-Bench-201 API download helper
@@ -107,7 +107,9 @@ evaluator = FitnessEvaluator(backend, max_evals=100)
 best, pop, fit = run_eem_nas(evaluator)
 ```
 
-The seven supported proxies are `zico`, `nwot`, `synflow`, `jacov`, `snip`, `grad_norm`, and `fisher`. Each proxy is implemented in `eem_nas/proxy/proxies.py`.
+The eight supported proxies are `zico`, `nwot`, `synflow`, `jacov`, `snip`, `grad_norm`, `fisher`, and `swap`. Each proxy is implemented in `eem_nas/proxy/proxies.py`.
+
+**SWAP** follows the official plain (unregularized) score of Peng et al. (ICLR 2024), with the setting used in the paper. Every post-ReLU unit defines a binary activation pattern over an m = 64 input batch, the score is the number of distinct patterns, and it is averaged over five N(0, 1) Gaussian weight re-initializations. When `batch_size` is not given, SWAP uses 64 samples and every other proxy uses 16. On a GPU one full-size NAS-Bench-201 network takes about 0.6 s.
 
 The NAS-Bench-201 `.pth` file is used only to look up the trained test accuracy of the returned architecture. It is not used by the search loop and does not provide proxy scores.
 
@@ -169,7 +171,7 @@ python -m scripts.run_one --method eem_nas --dataset cifar10 --proxy synflow --s
 
 ### Full Main Matrix
 
-The default matrix runs 5 methods x 7 proxies x 3 datasets x 100 seeds at FFC = 100. The 84 pairwise EEM-NAS-vs-baseline comparisons correspond to 4 baselines x 7 proxies x 3 datasets.
+The default matrix runs 5 methods x 8 proxies x 3 datasets x 100 seeds at FFC = 100. The 96 pairwise EEM-NAS-vs-baseline comparisons correspond to 4 baselines x 8 proxies x 3 datasets, matching the paper's main family.
 
 ```bash
 python -m scripts.download_nb201
@@ -202,7 +204,7 @@ Paper-final defaults:
 | `crossover_prob` | 0.9 | uniform crossover probability |
 | `cells_per_stage` | 5 | NAS-Bench-201 backbone depth per stage |
 
-These values produce the paper's 93 W / 3 T / 0 L result over 96 comparisons. With the seven proxies implemented here, they produce 82 W / 2 T / 0 L over 84 comparisons.
+These are the settings behind the paper's 93 W / 3 T / 0 L result over 96 comparisons.
 
 ---
 

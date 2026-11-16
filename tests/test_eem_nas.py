@@ -165,7 +165,7 @@ def test_eem_nas_with_online_backend_smoke():
     from eem_nas.proxy import OnlineProxyBackend
 
     backend = OnlineProxyBackend(
-        proxy_name="synflow",  # data-free, fastest of the seven
+        proxy_name="synflow",  # data-free, fastest of the eight
         dataset="cifar10",
         batch_size=8,
         n_batches=1,
@@ -199,3 +199,55 @@ def test_imagenet16_120_falls_back_to_imagenet16():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def _swap_reference(net, x):
+    """Direct transcription of the official SWAP counting (single init)."""
+    import torch
+    import torch.nn as nn
+
+    feats = []
+
+    def hook(_m, inp, out):
+        if len(inp[0].size()) == 4:
+            feats.append(out.detach())
+
+    hs = [m.register_forward_hook(hook) for m in net.modules() if isinstance(m, nn.ReLU)]
+    with torch.no_grad():
+        net(x)
+    for h in hs:
+        h.remove()
+    acts = torch.sign(torch.cat([f.view(x.size(0), -1) for f in feats], 1))
+    return torch.unique(acts.T, dim=0).size(0)
+
+
+def test_swap_matches_official_counting():
+    """Packed-pattern SWAP equals the official sign/transpose/unique count."""
+    import torch
+    from eem_nas.proxy import proxies
+    from eem_nas.proxy.nb201 import build_network
+
+    enc = np.array([3, 1, 3, 1, 3, 1], dtype=int)
+    for m in (8, 40):  # one and two packed words per pattern
+        net = build_network(enc, num_classes=10, cells_per_stage=1, init_seed=0)
+        net.train()
+        x = torch.randn(m, 3, 32, 32, generator=torch.Generator().manual_seed(1))
+        got = proxies.swap(net, x, repeats=1, seed=3)
+        proxies._gaussian_init_(net, torch.Generator().manual_seed(3))
+        assert got == _swap_reference(net, x)
+
+
+def test_swap_backend_defaults_and_determinism():
+    from eem_nas.proxy import OnlineProxyBackend
+
+    kw = dict(proxy_name="swap", dataset="cifar10", n_batches=1,
+              cells_per_stage=1, data_source="random", init_seed=0, cell_seed=0)
+    backend = OnlineProxyBackend(**kw)
+    assert backend._batches.first_batch()[0].size(0) == 64
+    enc = np.array([3, 3, 3, 3, 3, 3], dtype=int)
+    a = OnlineProxyBackend(**kw, cache_results=False).evaluate(enc)
+    b = OnlineProxyBackend(**kw, cache_results=False).evaluate(enc)
+    assert a == b and a > 0
+    # A cell of only skip/zero edges has strictly fewer ReLU units to pattern.
+    poor = OnlineProxyBackend(**kw).evaluate(np.array([0, 1, 0, 1, 0, 1], dtype=int))
+    assert poor < a

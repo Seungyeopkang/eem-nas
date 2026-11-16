@@ -48,7 +48,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--ffc", type=int, default=DEFAULT_FFC)
     parser.add_argument("--device", default="cpu", help="cpu or cuda")
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=None,
+                        help="default: 64 for swap, 16 for the other proxies")
     parser.add_argument("--n_batches", type=int, default=2,
                         help="ZiCo needs >= 2; other proxies use the first batch only")
     parser.add_argument("--data_source", choices=("torchvision", "imagenet16", "random"),
