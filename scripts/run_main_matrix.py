@@ -2,7 +2,7 @@
 
 The matrix is
 
-    methods (5)  x  proxies (7)  x  datasets (3)  x  seeds (N)
+    methods (5)  x  proxies (8)  x  datasets (3)  x  seeds (N)
 
 where the methods are EEM-NAS plus four baselines (random,
 aging_evolution, simple_mutation, generic_ga). Every candidate is
