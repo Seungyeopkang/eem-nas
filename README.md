@@ -7,7 +7,8 @@ Reference implementation accompanying the paper:
 
 > 📄 Published in *Electronics*, 2026.
 >
-> **Budgeted Fixed-Proxy Search for Zero-Shot NAS on NAS-Bench-201 via Evaluation-Efficient Memetic NAS**
+> **Budgeted Fixed-Proxy Search for Zero-Shot NAS via Evaluation-Efficient Memetic NAS**
+> Seungyeop Kang, Wangduk Seo. *Electronics* 15(15), 3408, 2026.
 
 ---
 
@@ -24,6 +25,22 @@ Reference implementation accompanying the paper:
 EEM-NAS is a single-population memetic search procedure for **budgeted fixed-proxy zero-shot NAS** on the NAS-Bench-201 TSS search space. Each run optimizes one fixed zero-cost proxy under a strict fitness function call budget (FFC = 100), so only 100 of the 15,625 candidate architectures are queried.
 
 This repository provides a clean reproduction of the paper's four search primitives, four budgeted fixed-proxy baselines, an online zero-cost proxy backend, and scripts/notebooks for NAS-Bench-201 experiments. In the online backend, every candidate builds the actual NAS-Bench-201 architecture and runs a real PyTorch forward/backward proxy computation on a fixed cached minibatch.
+
+---
+
+## Main Result (paper)
+
+NAS-Bench-201 TSS, 8 zero-cost proxies × 3 datasets (CIFAR-10, CIFAR-100, ImageNet-16-120) × 4 baselines, FFC = 100, 100 paired seeds per cell. A win requires Holm-corrected Wilcoxon *p* < 0.05 and Cliff's δ > 0 on the final proxy score.
+
+| vs. baseline | Win | Tie | Loss |
+| --- | ---: | ---: | ---: |
+| Random | 24 | 0 | 0 |
+| Regularized Evolution | 23 | 1 | 0 |
+| Simple Mutation | 24 | 0 | 0 |
+| Generic GA | 22 | 2 | 0 |
+| **Total (96 comparisons)** | **93** | **3** | **0** |
+
+> **Proxy coverage in this code.** The paper evaluates eight proxies: ZiCo, NWOT, SynFlow, Jacov, SNIP, Grad Norm, Fisher, and SWAP. This repository currently implements the first seven. The default matrix is therefore 4 × 7 × 3 = 84 comparisons, which gives 82 W / 2 T / 0 L, the 84-comparison subset of the paper's family.
 
 ---
 
@@ -185,7 +202,7 @@ Paper-final defaults:
 | `crossover_prob` | 0.9 | uniform crossover probability |
 | `cells_per_stage` | 5 | NAS-Bench-201 backbone depth per stage |
 
-These values produce the 82 W / 2 T / 0 L Holm-corrected main result reported for the 84 EEM-NAS-vs-baseline comparison family.
+These values produce the paper's 93 W / 3 T / 0 L result over 96 comparisons. With the seven proxies implemented here, they produce 82 W / 2 T / 0 L over 84 comparisons.
 
 ---
 
@@ -228,6 +245,23 @@ python -m pytest tests/ -q
 ```
 
 The test suite includes search-side smoke tests and online-backend tests that build NAS-Bench-201 cells, run every proxy, check finite outputs, run EEM-NAS at a tiny FFC budget, and verify ImageNet-16-120 routing. Tests do not require the NAS-Bench-201 `.pth` file or downloaded image datasets.
+
+---
+
+## Citation
+
+```bibtex
+@article{kang2026eemnas,
+  title   = {Budgeted Fixed-Proxy Search for Zero-Shot {NAS} via Evaluation-Efficient Memetic {NAS}},
+  author  = {Kang, Seungyeop and Seo, Wangduk},
+  journal = {Electronics},
+  volume  = {15},
+  number  = {15},
+  pages   = {3408},
+  year    = {2026},
+  doi     = {10.3390/electronics15153408}
+}
+```
 
 ---
 
